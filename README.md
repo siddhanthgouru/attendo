@@ -1,1 +1,1 @@
-# v1: created backend w fast api and using InsightFace (check https://github.com/deepinsight/insightface) with SCRFD for facial matching. store in pinecone for fast matching and attendance trakced through sqlLite
+v1: created backend w fast api and using InsightFace (check https://github.com/deepinsight/insightface) with SCRFD for facial matching. store in pinecone for fast matching and attendance trakced through sqlLite
