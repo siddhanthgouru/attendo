@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from PIL import Image, ExifTags
 from insightface.app import FaceAnalysis
 
 # Initialize the InsightFace model once at module level.
@@ -52,18 +53,34 @@ def get_single_embedding(image: np.ndarray) -> np.ndarray:
     return faces[0]["embedding"]
 
 
+def _apply_exif_rotation(pil_image: Image.Image) -> Image.Image:
+    """Rotate a PIL image according to its EXIF orientation tag."""
+    try:
+        exif = pil_image._getexif()
+        if exif is None:
+            return pil_image
+        orientation_key = next(k for k, v in ExifTags.TAGS.items() if v == "Orientation")
+        orientation = exif.get(orientation_key)
+        rotations = {3: 180, 6: 270, 8: 90}
+        if orientation in rotations:
+            pil_image = pil_image.rotate(rotations[orientation], expand=True)
+    except (StopIteration, AttributeError):
+        pass
+    return pil_image
+
+
 def load_image(file_path: str) -> np.ndarray:
-    """Load an image from disk as a BGR numpy array."""
-    image = cv2.imread(file_path)
-    if image is None:
-        raise ValueError(f"Could not read image at {file_path}")
-    return image
+    """Load an image from disk as a BGR numpy array, respecting EXIF rotation."""
+    pil_img = Image.open(file_path)
+    pil_img = _apply_exif_rotation(pil_img)
+    rgb = np.array(pil_img.convert("RGB"))
+    return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
 
 
 def load_image_from_bytes(data: bytes) -> np.ndarray:
-    """Load an image from raw bytes (e.g., an uploaded file)."""
-    arr = np.frombuffer(data, dtype=np.uint8)
-    image = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-    if image is None:
-        raise ValueError("Could not decode image from uploaded bytes.")
-    return image
+    """Load an image from raw bytes, respecting EXIF rotation."""
+    import io
+    pil_img = Image.open(io.BytesIO(data))
+    pil_img = _apply_exif_rotation(pil_img)
+    rgb = np.array(pil_img.convert("RGB"))
+    return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
